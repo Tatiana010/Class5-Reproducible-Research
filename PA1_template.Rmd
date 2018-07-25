@@ -1,0 +1,196 @@
+---
+title: "Class 5 Reproducible Research"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Assignment 1
+
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+
+The variables included in this dataset are:
+
+    steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+    date: The date on which the measurement was taken in YYYY-MM-DD format
+    interval: Identifier for the 5-minute interval in which measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+
+Submit:
+
+1. Code for reading in the dataset and/or processing the data
+
+2. Histogram of the total number of steps taken each day
+
+3. Mean and median number of steps taken each day
+    
+4. Time series plot of the average number of steps taken
+    
+5. The 5-minute interval that, on average, contains the maximum number of steps
+    
+6. Code to describe and show a strategy for imputing missing data
+    
+7. Histogram of the total number of steps taken each day after missing values are imputed
+
+8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+9. All of the R code needed to reproduce the results (numbers, plots, etc.) in the report
+
+
+### 1. Code for reading in the dataset and/or processing the data
+
+#### Loading and preprocessing the data
+
+```{r}
+# Prepare the workspace
+rm(list=ls())
+
+# Set the working directory
+setwd("C:/Users/star/Desktop/COURSERA/Class_5_Reproducible_Research_Project_1/Project_1")
+
+# Load the raw data
+activity_raw <- read.csv("activity.csv", stringsAsFactors=FALSE)
+
+# Check the the internal structure of an R object
+str(activity_raw)
+```
+
+
+```{r}
+# Transform the date character to a date format
+activity_raw$date <- as.Date(activity_raw$date,format="%m/%d/%Y")
+str(activity_raw)
+
+head(activity_raw)
+
+# Compute the weekdays
+activity_raw<-data.frame(date=activity_raw$date, weekday=tolower(weekdays(activity_raw$date)), steps=activity_raw$steps,interval=activity_raw$interval)
+
+head(activity_raw)
+
+# Compute the day type (weekend or weekday)
+activity_raw<-cbind(activity_raw, daytype=ifelse(activity_raw$weekday=="saturday" | activity_raw$weekday=="sunday", "weekend","weekday"))
+
+head(activity_raw)
+
+# Combine into the final data.frame
+activity<-data.frame(date=activity_raw$date, weekday=activity_raw$weekday, daytype=activity_raw$daytype, interval=activity_raw$interval, steps=activity_raw$steps)
+
+head(activity)
+
+# Clear the workspace
+rm(activity_raw)
+```
+
+
+
+### 2. Histogram of the total number of steps taken each day
+
+```{r}
+steps_per_day<-aggregate(steps ~ date, activity, sum)
+head(steps_per_day)
+
+hist(steps_per_day$steps, main = "Total number of steps taken each day", xlab = "Number of Steps", col = "yellow")
+```
+
+
+### 3. Mean and median number of steps taken each day
+
+```{r}
+rmean <- mean(steps_per_day$steps)
+rmean
+
+rmedian <- median(steps_per_day$steps)
+rmedian
+```
+
+
+### 4. Time series plot of the average number of steps taken
+
+```{r}
+steps_per_interval<-aggregate(steps ~ interval, activity, mean)
+head(steps_per_interval)
+
+plot(steps_per_interval, type="l",main="Average Number of Steps per Day by Interval",xlab="Interval", ylab="Number of Steps")
+```
+
+
+### 5. The 5-minute interval that, on average, contains the maximum number of steps
+
+```{r}
+#Maximum number of steps for a 5-minute interval
+maxSteps <- max(steps_per_interval$steps)
+maxSteps
+
+#5-minute Interval with the maximum average number of steps
+steps_per_interval[steps_per_interval$steps==maxSteps,1]
+
+
+```
+
+
+### 6. Code to describe and show a strategy for imputing missing data
+
+```{r}
+#Count the total number of missing values in the dataset
+NA_count <- sum(is.na(activity$steps))
+NA_count
+
+##As a strategy, you can count the mean of steps for each day and use instead of missing values
+
+# For that, find the NA positions
+na_pos <- which(is.na(activity$steps))
+head(na_pos)
+
+# Create a vector of means
+mean_vec <- rep(mean(activity$steps, na.rm=TRUE), times=length(na_pos))
+head(mean_vec)
+
+##Replace each NA value by the mean of the steps attribute and create a new dataset with the missing data filled in.
+
+activity[na_pos, "steps"] <- mean_vec
+head(activity)
+
+```
+
+### 7.   Histogram of the total number of steps taken each day after missing values are imputed
+
+
+```{r}
+sum_data <- aggregate(steps ~ date, activity, sum)
+head(sum_data)
+
+hist(sum_data$steps, main = "Total number of steps taken each day, NA replaced by mean value", xlab = "Number of Steps", col = "violet")
+```
+
+### 8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+```{r}
+
+
+#Average number of steps taken across all daytype variable
+mean_data <- aggregate(activity$steps,            by=list(activity$daytype,                                     activity$weekday, activity$interval), mean)
+
+# Rename the attributes
+names(mean_data) <- c("daytype", "weekday", "interval", "mean")
+
+head(mean_data)
+
+library(lattice)
+
+xyplot(mean ~ interval | daytype, mean_data, 
+       type="l",
+       col="violet",
+       lwd=0.5, 
+       xlab="Interval", 
+       ylab="Number of steps", 
+       layout=c(1,2))
+```
+
